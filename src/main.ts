@@ -8,7 +8,8 @@ let swarm: Swarm | null = null;
 let selected: number | null = null;
 let panelOpen = false;
 const panel = element('seat-panel');
-const map = new HiveMap(select, closePanel);
+// On phones the open panel sticks to the bottom; the map should stay visible above it.
+const map = new HiveMap(select, closePanel, () => panelOpen && getComputedStyle(panel).position === 'sticky' ? panel.getBoundingClientRect().top : innerHeight);
 
 function announce() {
   if (selected === null) return;
@@ -116,7 +117,7 @@ function renderEvents() {
     button.addEventListener('click', () => openAndReveal(event.tokenId));
     const content = document.createElement('div'); content.className = 'event-text';
     const description = document.createElement('p'); description.textContent = eventText(event);
-    const time = document.createElement('time'); time.dateTime = new Date(event.at).toISOString();
+    const time = document.createElement('time'); time.dateTime = new Date(event.at).toISOString(); time.dataset.at = String(event.at);
     time.textContent = relativeTime(event.at); content.append(description, time); item.append(button, content); fragment.append(item);
   }
   list.replaceChildren(fragment);
@@ -159,4 +160,7 @@ startPolling(data => {
   text('fetch-note', "We couldn't reach the swarm. Showing the last map we had.");
   element('fetch-note').hidden = false;
   text('sync-label', swarm ? 'Last known state' : 'Waiting for the swarm');
+  // Retained data keeps ageing: refresh the relative times without touching counts or the map.
+  renderPanel();
+  for (const time of element('events-list').querySelectorAll('time')) time.textContent = relativeTime(Number(time.dataset.at));
 }, hidden => { document.documentElement.dataset.hidden = String(hidden); });

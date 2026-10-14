@@ -20,8 +20,10 @@ export class HiveMap {
   private working: number[] = [];
   private phase = 0;
   private intersectionVisible = true;
+  private frame: number | null = null;
 
-  constructor(private onSelect: (id: number, open: boolean) => void, private onClose: () => void) {
+  /** `freeHeight` returns the viewport height not covered by the phone's sticky seat panel. */
+  constructor(private onSelect: (id: number, open: boolean) => void, private onClose: () => void, private freeHeight: () => number = () => innerHeight) {
     this.canvas = document.querySelector<HTMLCanvasElement>('#seat-map')!;
     this.layer = document.querySelector<HTMLCanvasElement>('#working-layer')!;
     this.context = this.canvas.getContext('2d')!;
@@ -31,16 +33,20 @@ export class HiveMap {
     this.g = geometry(this.canvas.getBoundingClientRect().width);
     this.readPalette();
     this.resize();
-    new ResizeObserver(() => this.resize()).observe(this.canvas.parentElement!);
+    // Canvas sizes are written in a frame callback so the observer never mutates its own target synchronously.
+    new ResizeObserver(() => this.scheduleResize()).observe(this.canvas.parentElement!);
     new IntersectionObserver(([entry]) => { this.intersectionVisible = entry.isIntersecting; this.configurePulse(); }).observe(this.scroller);
     this.watchRatio();
-    this.theme.addEventListener('change', () => { this.readPalette(); this.draw(); });
+    this.theme.addEventListener('change', () => this.repaint());
+    // WebKit may run this module before the bundled stylesheet has loaded; reread the palette once it has.
+    for (const link of document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]')) link.addEventListener('load', () => this.repaint());
+    addEventListener('load', () => this.repaint());
     this.motion.addEventListener('change', () => this.configurePulse());
     document.addEventListener('visibilitychange', () => this.configurePulse());
     this.canvas.addEventListener('click', (event) => {
       const bounds = this.canvas.getBoundingClientRect();
       const id = hitTest(event.clientX - bounds.left, event.clientY - bounds.top, this.g);
-      if (id !== null) { this.canvas.focus({ preventScroll: true }); this.onSelect(id, true); }
+      if (id !== null) { this.canvas.focus({ preventScroll: true }); this.onSelect(id, true); this.keepVisible(id); }
     });
     this.canvas.addEventListener('pointermove', event => this.hover(event));
     this.canvas.addEventListener('pointerleave', () => { this.tooltip.hidden = true; });
@@ -71,12 +77,34 @@ export class HiveMap {
   reveal(id: number, scrollPage = true) {
     const p = center(id, this.g);
     this.scroller.scrollTop = Math.max(0, p.y - this.scroller.clientHeight / 2);
-    if (scrollPage) this.scroller.scrollIntoView({ behavior: 'instant', block: 'center' });
+    if (!scrollPage) return;
+    // Centre the map in the part of the viewport the open seat panel leaves free.
+    const bounds = this.scroller.getBoundingClientRect();
+    const top = Math.max(0, (this.freeHeight() - bounds.height) / 2);
+    scrollBy({ top: bounds.top - top, behavior: 'instant' });
+  }
+  /** After a tap on a phone the panel rises over the lower map; scroll only if it would hide the chosen cell. */
+  private keepVisible(id: number) {
+    const free = this.freeHeight();
+    if (free >= innerHeight) return;
+    const y = this.canvas.getBoundingClientRect().top + center(id, this.g).y;
+    if (y < this.g.radius || y > free - this.g.radius) this.reveal(id);
   }
   focus() { this.canvas.focus({ preventScroll: true }); }
   private readPalette() {
     const style = getComputedStyle(document.documentElement);
-    this.palette = { ember: style.getPropertyValue('--ember').trim(), outline: style.getPropertyValue('--idle-stroke').trim(), text: style.getPropertyValue('--text').trim() };
+    const dark = this.theme.matches;
+    // Never keep an empty value: before the stylesheet applies, fall back to the page's own scheme colours.
+    const read = (name: string, fallback: string) => style.getPropertyValue(name).trim() || fallback;
+    const palette = { ember: read('--ember', dark ? '#ff9a5c' : '#bd3f0b'), outline: read('--idle-stroke', dark ? '#49494e' : '#b4b1a9'), text: read('--text', dark ? '#f2f1ee' : '#1c1c1e') };
+    const changed = palette.ember !== this.palette.ember || palette.outline !== this.palette.outline || palette.text !== this.palette.text;
+    this.palette = palette;
+    return changed;
+  }
+  private repaint() { if (this.readPalette()) this.draw(); }
+  private scheduleResize() {
+    if (this.frame !== null) return;
+    this.frame = requestAnimationFrame(() => { this.frame = null; this.resize(); });
   }
   private watchRatio = () => {
     this.resolution?.removeEventListener('change', this.watchRatio);

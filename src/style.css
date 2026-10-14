@@ -85,8 +85,9 @@ ol { list-style: none; padding: 0; }
 .field-error { flex-basis: 100%; font-size: var(--small); color: var(--ember); }
 .refresh-info { display: flex; flex-direction: column; align-items: flex-end; font-size: var(--small); }
 .fetch-note { margin-block-end: 16px; color: var(--muted); padding-inline-start: 12px; border-inline-start: 2px solid var(--ember); font-size: var(--small); }
-.content-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space); align-items: start; }
-.map-card { grid-column: 1 / -1; grid-row: 1; position: relative; }
+/* The map, legend and seat panel are direct children of main, so the phone's sticky panel is
+   constrained by main and can always reach the viewport bottom. Cards keep 16px gaps by margin. */
+.map-card { position: relative; }
 .section-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
 .section-heading > .muted { font-size: var(--small); white-space: nowrap; }
 .map-help { font-size: var(--small); color: var(--muted); margin-block: 6px 18px; }
@@ -98,7 +99,7 @@ canvas { display: block; width: 100%; }
 #working-layer { position: absolute; top: 0; left: 0; pointer-events: none; }
 .keyboard-help { color: var(--muted); font-size: var(--small); margin-block-start: 16px; }
 .map-tooltip { position: absolute; z-index: 5; pointer-events: none; padding: 8px 12px; font-size: var(--small); border: 1px solid var(--muted); border-radius: 8px; color: var(--text); background: var(--card); max-width: calc(100% - 32px); }
-.legend { grid-column: 1 / -1; grid-row: 2; display: flex; align-items: center; flex-wrap: wrap; gap: 10px 20px; font-size: var(--small); color: var(--muted); }
+.legend { margin-block-start: var(--space); display: flex; align-items: center; flex-wrap: wrap; gap: 10px 20px; font-size: var(--small); color: var(--muted); }
 .legend > span { display: flex; align-items: center; gap: 8px; }
 .legend i { display: inline-block; flex-shrink: 0; }
 .legend-working, .legend-idle { width: 12px; height: 14px; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); }
@@ -106,7 +107,7 @@ canvas { display: block; width: 100%; }
 .legend-idle { background: var(--idle-stroke); position: relative; }
 .legend-idle::after { content: ''; position: absolute; inset: 1px; background: var(--page); clip-path: inherit; }
 .heat-ramp { width: 40px; height: 10px; border-radius: 2px; background: linear-gradient(to right, color-mix(in srgb, var(--ember) 18%, var(--page)), color-mix(in srgb, var(--ember) 75%, var(--page))); }
-.seat-panel { grid-column: 1 / -1; grid-row: 3; }
+.seat-panel { margin-block-start: var(--space); }
 #panel-empty { position: relative; min-height: 96px; }
 #panel-empty p { margin-block-start: 12px; max-width: 70ch; font-size: var(--small); }
 .panel-empty-icon { position: absolute; inset-inline-end: 0; bottom: -8px; font-size: var(--display); color: var(--border); line-height: 1; }
@@ -135,7 +136,7 @@ canvas { display: block; width: 100%; }
 .panel-body > div { min-width: 0; }
 .panel-actions { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; }
 .panel-actions .panel-navigation { min-width: 320px; }
-.busiest-card { grid-column: 1; grid-row: 4; }
+.pair-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space); align-items: start; margin-block-start: var(--space); }
 .busiest-list { display: grid; gap: 4px; margin-block-start: 16px; }
 .busiest-row { display: grid; grid-template-columns: 24px 68px 1fr auto; width: 100%; gap: 8px; align-items: center; text-align: start; padding: 4px 0; border: 0; border-radius: 4px; font-size: var(--small); font-weight: 400; }
 .row-rank { color: var(--muted); }
@@ -143,7 +144,6 @@ canvas { display: block; width: 100%; }
 .mini-bar { display: block; height: 4px; border-radius: 4px; background: var(--border); }
 .mini-bar-fill { display: block; height: 100%; border-radius: inherit; background: var(--ember); opacity: 0.75; }
 .busiest-row.is-selected .seat-chip { border-color: var(--ember); color: var(--ember); }
-.latest-card { grid-column: 2; grid-row: 4; }
 .events-list { margin-block-start: 16px; display: grid; grid-template-columns: minmax(0, 1fr); }
 .event { display: flex; align-items: flex-start; gap: 12px; padding-block: 14px; border-block-start: 1px solid var(--border); min-width: 0; }
 .event .seat-chip { min-width: 68px; min-height: 44px; background: var(--card); }
@@ -168,8 +168,7 @@ footer a { display: inline-block; min-height: 44px; padding-block: 12px; }
 html[data-hidden="true"] .working-dot { animation-play-state: paused; }
 @media (max-width: 56rem) {
   .page { padding-inline: 24px; }
-  .content-grid { grid-template-columns: minmax(0, 1fr); }
-  .content-grid > * { grid-column: 1; grid-row: auto; }
+  .pair-grid { grid-template-columns: minmax(0, 1fr); }
   .map-scroll { max-height: 520px; }
   .events-list { grid-template-columns: 1fr; }
   .panel-body { display: block; margin-block-start: 0; }
